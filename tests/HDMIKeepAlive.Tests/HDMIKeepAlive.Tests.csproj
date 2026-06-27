@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\HDMIKeepAlive.Audio\HDMIKeepAlive.Audio.csproj" />
+    <ProjectReference Include="..\..\src\HDMIKeepAlive.Core\HDMIKeepAlive.Core.csproj" />
+    <ProjectReference Include="..\..\src\HDMIKeepAlive.Diagnostics\HDMIKeepAlive.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\src\HDMIKeepAlive.Infrastructure\HDMIKeepAlive.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\HDMIKeepAlive.UI\HDMIKeepAlive.UI.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
+    <PackageReference Include="xunit" Version="2.8.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.1">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

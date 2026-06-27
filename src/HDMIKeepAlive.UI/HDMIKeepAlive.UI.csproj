@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\HDMIKeepAlive.Core\HDMIKeepAlive.Core.csproj" />
+    <ProjectReference Include="..\HDMIKeepAlive.Audio\HDMIKeepAlive.Audio.csproj" />
+    <ProjectReference Include="..\HDMIKeepAlive.Diagnostics\HDMIKeepAlive.Diagnostics.csproj" />
+    <ProjectReference Include="..\HDMIKeepAlive.Infrastructure\HDMIKeepAlive.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+  </ItemGroup>
+</Project>

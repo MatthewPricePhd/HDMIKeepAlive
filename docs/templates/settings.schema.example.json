@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "startWithWindows": false,
+  "startMinimized": true,
+  "minimizeToTray": true,
+  "targetMode": "DefaultDevice",
+  "targetDeviceId": null,
+  "targetFriendlyNameFallback": null,
+  "keepAliveMode": "HoldOnly",
+  "loggingEnabled": false,
+  "reconnectIntervalSeconds": 5,
+  "showNotifications": true
+}
