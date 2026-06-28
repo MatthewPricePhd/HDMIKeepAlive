@@ -46,6 +46,9 @@ When making changes:
 - Explain architectural decisions.
 - Identify any risks.
 - List next steps.
+- If the update is ready for Windows testing, provide:
+  - A copy/paste prompt for Claude Code to commit, push, and let GitHub Actions package the ZIP artifacts.
+  - Updated Windows UAT steps tailored to the behavior changed in that update.
 - Keep changes focused.
 
 ## If Ambiguous

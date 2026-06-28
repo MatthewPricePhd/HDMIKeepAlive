@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using HDMIKeepAlive.Core.Models;
 
 namespace HDMIKeepAlive.Audio;
@@ -8,9 +9,6 @@ namespace HDMIKeepAlive.Audio;
 /// </summary>
 public sealed class WasapiAudioEndpointSource : IAudioEndpointSource
 {
-    private const int DeviceStateActive = 0x00000001;
-    private const int StgmRead = 0x00000000;
-
     /// <inheritdoc />
     public Task<IReadOnlyList<AudioEndpointSnapshot>> GetPlaybackEndpointsAsync(CancellationToken cancellationToken)
     {
@@ -37,11 +35,12 @@ public sealed class WasapiAudioEndpointSource : IAudioEndpointSource
         return Task.FromResult(GetDefaultPlaybackEndpointId());
     }
 
+    [SupportedOSPlatform("windows")]
     private static IReadOnlyList<AudioEndpointSnapshot> GetPlaybackEndpoints()
     {
         var endpoints = new List<AudioEndpointSnapshot>();
-        var enumerator = (IMMDeviceEnumerator)(object)new MMDeviceEnumerator();
-        enumerator.EnumAudioEndpoints(EDataFlow.ERender, DeviceStateActive, out IMMDeviceCollection collection);
+        var enumerator = CoreAudioInterop.CreateDeviceEnumerator();
+        enumerator.EnumAudioEndpoints(EDataFlow.ERender, CoreAudioInterop.DeviceStateActive, out IMMDeviceCollection collection);
         collection.GetCount(out uint count);
 
         for (uint index = 0; index < count; index++)
@@ -53,9 +52,10 @@ public sealed class WasapiAudioEndpointSource : IAudioEndpointSource
         return endpoints;
     }
 
+    [SupportedOSPlatform("windows")]
     private static string? GetDefaultPlaybackEndpointId()
     {
-        var enumerator = (IMMDeviceEnumerator)(object)new MMDeviceEnumerator();
+        var enumerator = CoreAudioInterop.CreateDeviceEnumerator();
         enumerator.GetDefaultAudioEndpoint(EDataFlow.ERender, ERole.EConsole, out IMMDevice device);
         device.GetId(out string id);
         return id;
@@ -65,7 +65,7 @@ public sealed class WasapiAudioEndpointSource : IAudioEndpointSource
     {
         device.GetId(out string id);
         device.GetState(out int state);
-        device.OpenPropertyStore(StgmRead, out IPropertyStore propertyStore);
+        device.OpenPropertyStore(CoreAudioInterop.StgmRead, out IPropertyStore propertyStore);
 
         string friendlyName = GetPropertyString(propertyStore, PropertyKeys.DeviceFriendlyName) ?? id;
         string? interfaceName = GetPropertyString(propertyStore, PropertyKeys.DeviceInterfaceFriendlyName);
@@ -109,110 +109,4 @@ public sealed class WasapiAudioEndpointSource : IAudioEndpointSource
             2);
     }
 
-    private enum EDataFlow
-    {
-        ERender = 0,
-        ECapture = 1,
-        EAll = 2
-    }
-
-    private enum ERole
-    {
-        EConsole = 0,
-        EMultimedia = 1,
-        ECommunications = 2
-    }
-
-    [ComImport]
-    [Guid("bcde0395-e52f-467c-8e3d-c4579291692e")]
-    private sealed class MMDeviceEnumerator
-    {
-    }
-
-    [ComImport]
-    [Guid("a95664d2-9614-4f35-a746-de8db63617e6")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IMMDeviceEnumerator
-    {
-        void EnumAudioEndpoints(EDataFlow dataFlow, int stateMask, out IMMDeviceCollection devices);
-
-        void GetDefaultAudioEndpoint(EDataFlow dataFlow, ERole role, out IMMDevice endpoint);
-    }
-
-    [ComImport]
-    [Guid("0bd7a1be-7a1a-44db-8397-cc5392387b5e")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IMMDeviceCollection
-    {
-        void GetCount(out uint count);
-
-        void Item(uint deviceNumber, out IMMDevice device);
-    }
-
-    [ComImport]
-    [Guid("d666063f-1587-4e43-81f1-b948e807363f")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IMMDevice
-    {
-        void Activate(
-            ref Guid interfaceId,
-            int classContext,
-            IntPtr activationParams,
-            [MarshalAs(UnmanagedType.IUnknown)] out object interfacePointer);
-
-        void OpenPropertyStore(int accessMode, out IPropertyStore properties);
-
-        void GetId([MarshalAs(UnmanagedType.LPWStr)] out string id);
-
-        void GetState(out int state);
-    }
-
-    [ComImport]
-    [Guid("886d8eeb-8cf2-4446-8d02-cdba1dbdcf99")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IPropertyStore
-    {
-        void GetCount(out uint propertyCount);
-
-        void GetAt(uint propertyIndex, out PropertyKey key);
-
-        void GetValue(ref PropertyKey key, out PropVariant value);
-
-        void SetValue(ref PropertyKey key, ref PropVariant value);
-
-        void Commit();
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private readonly struct PropertyKey
-    {
-        public PropertyKey(Guid formatId, int propertyId)
-        {
-            formatIdField = formatId;
-            propertyIdField = propertyId;
-        }
-
-        private readonly Guid formatIdField;
-
-        private readonly int propertyIdField;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct PropVariant
-    {
-        private ushort valueType;
-        private ushort reserved1;
-        private ushort reserved2;
-        private ushort reserved3;
-        private IntPtr value;
-        private int value2;
-
-        public string? GetString()
-        {
-            const ushort vtLpwstr = 31;
-            return valueType == vtLpwstr && value != IntPtr.Zero
-                ? Marshal.PtrToStringUni(value)
-                : null;
-        }
-    }
 }
