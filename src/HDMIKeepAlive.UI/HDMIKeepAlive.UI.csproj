@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <AssemblyName>HDMIKeepAlive</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\HDMIKeepAlive.Core\HDMIKeepAlive.Core.csproj" />

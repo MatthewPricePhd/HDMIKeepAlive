@@ -266,3 +266,12 @@ Create a usable release.
 
 - User can download, unzip, and run.
 - No installer required.
+
+### Early Hardware Validation Artifacts
+
+Before the full release milestone, CI may publish downloadable Windows ZIP artifacts for direct hardware validation:
+
+- `HDMIKeepAlive-win-x64-portable.zip`
+- `HDMIKeepAlive-win-x64-self-contained.zip`
+
+The ZIP should contain the runnable `.exe` and supporting files. Test users should extract the ZIP and run the executable without elevation. Installer/MSIX packaging remains deferred.

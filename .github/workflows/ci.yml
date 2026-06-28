@@ -26,3 +26,40 @@ jobs:
 
       - name: Test
         run: dotnet test --configuration Release --no-build
+
+  package:
+    runs-on: windows-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish framework-dependent win-x64
+        run: dotnet publish src/HDMIKeepAlive.UI/HDMIKeepAlive.UI.csproj --configuration Release --runtime win-x64 --self-contained false --output artifacts/publish/framework-dependent
+
+      - name: Publish self-contained win-x64
+        run: dotnet publish src/HDMIKeepAlive.UI/HDMIKeepAlive.UI.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/publish/self-contained
+
+      - name: Create portable ZIPs
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/zips | Out-Null
+          Compress-Archive -Path artifacts/publish/framework-dependent/* -DestinationPath artifacts/zips/HDMIKeepAlive-win-x64-portable.zip -Force
+          Compress-Archive -Path artifacts/publish/self-contained/* -DestinationPath artifacts/zips/HDMIKeepAlive-win-x64-self-contained.zip -Force
+
+      - name: Upload framework-dependent portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: HDMIKeepAlive-win-x64-portable
+          path: artifacts/zips/HDMIKeepAlive-win-x64-portable.zip
+
+      - name: Upload self-contained portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: HDMIKeepAlive-win-x64-self-contained
+          path: artifacts/zips/HDMIKeepAlive-win-x64-self-contained.zip

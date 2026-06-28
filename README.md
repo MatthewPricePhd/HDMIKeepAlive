@@ -35,6 +35,25 @@ It must not install drivers, services, kernel components, hooks, virtual devices
 
 See `/docs` for the complete product specification, architecture, test plan, coding standards, and coding-agent kickoff prompts.
 
+## Early Windows Hardware Testing
+
+GitHub Actions produces portable Windows ZIP artifacts for hardware validation:
+
+- `HDMIKeepAlive-win-x64-portable.zip`: framework-dependent, requires .NET 8 on the target machine.
+- `HDMIKeepAlive-win-x64-self-contained.zip`: larger, includes the runtime and is preferred for corporate/work machines.
+
+Download an artifact from a successful workflow run, extract it, and run `HDMIKeepAlive.exe` from PowerShell or Command Prompt. No installer, administrator rights, service, driver, or registry modification is required.
+
+Useful validation commands:
+
+```powershell
+.\HDMIKeepAlive.exe --list-devices
+.\HDMIKeepAlive.exe --run --mode HoldOnly
+.\HDMIKeepAlive.exe --run --mode SilentPcm
+.\HDMIKeepAlive.exe --run --mode SilentPcm --device-id "<endpoint-id>"
+.\HDMIKeepAlive.exe --run --mode SilentPcm --target hdmi
+```
+
 ## License
 
 MIT License. See `LICENSE`.

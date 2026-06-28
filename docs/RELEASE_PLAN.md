@@ -10,10 +10,16 @@ MAJOR.MINOR.PATCH
 
 ## Release Artifacts
 
-- Framework-dependent zip
-- Self-contained win-x64 zip
+- `HDMIKeepAlive-win-x64-portable.zip`
+  - Framework-dependent.
+  - Requires .NET 8 on the target machine.
+- `HDMIKeepAlive-win-x64-self-contained.zip`
+  - Includes the .NET runtime.
+  - Preferred for corporate/work machines where installing .NET may not be practical.
 - Checksums
 - Release notes
+
+Early hardware validation builds should be uploaded as GitHub Actions workflow artifacts. Users should download the ZIP, extract it, and run `HDMIKeepAlive.exe`. Installer and MSIX packaging are deferred until the app is stable.
 
 ## Pre-Release Checklist
 

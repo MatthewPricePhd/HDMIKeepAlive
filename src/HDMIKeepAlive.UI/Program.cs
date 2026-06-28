@@ -1,10 +1,26 @@
 using HDMIKeepAlive.UI;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 using IHost host = AppBootstrapper.CreateHostBuilder(args).Build();
+using var cancellation = new CancellationTokenSource();
 
-ILoggerFactory loggerFactory = host.Services.GetRequiredService<ILoggerFactory>();
-ILogger logger = loggerFactory.CreateLogger("HDMIKeepAlive");
-logger.LogInformation("HDMIKeepAlive Milestone 0 host initialized.");
+Console.CancelKeyPress += (_, eventArgs) =>
+{
+    eventArgs.Cancel = true;
+    cancellation.Cancel();
+};
+
+CommandLineOptions options;
+try
+{
+    options = CommandLineOptions.Parse(args);
+}
+catch (ArgumentException ex)
+{
+    await Console.Error.WriteLineAsync(ex.Message);
+    await Console.Out.WriteLineAsync(CommandLineOptions.GetUsage());
+    return 2;
+}
+
+var runner = new ConsoleHardwareValidationRunner(host, Console.Out);
+return await runner.RunAsync(options, cancellation.Token);
