@@ -17,6 +17,7 @@ public sealed class SilentPcmRenderSessionTests
         await session.RenderSilenceAsync(CancellationToken.None);
 
         Assert.Equal(60u, client.LastRenderedFrameCount);
+        Assert.Equal(PcmRenderSignal.DigitalSilence, client.LastSignal);
         Assert.Equal(60, session.FramesRendered);
         Assert.Equal(48000, session.SampleRate);
         Assert.Equal(16, session.BitDepth);
@@ -58,6 +59,37 @@ public sealed class SilentPcmRenderSessionTests
         Assert.All(buffer, value => Assert.Equal(0, value));
     }
 
+    [Fact]
+    public void PcmKeepAliveBuffer_CreateLowAmplitudeIntegerSignalReturnsNonZeroAlternatingSamples()
+    {
+        var format = new AudioRenderFormat(
+            SampleRate: 48000,
+            BitDepth: 16,
+            Channels: 2,
+            BlockAlign: 4,
+            SampleFormat: AudioRenderSampleFormat.PcmInteger);
+
+        byte[] buffer = PcmKeepAliveBuffer.Create(format, frameCount: 2, PcmRenderSignal.LowAmplitude);
+
+        Assert.Equal([1, 0, 1, 0, 255, 255, 255, 255], buffer);
+    }
+
+    [Fact]
+    public void PcmKeepAliveBuffer_CreateDigitalSilenceReturnsZeroValuedBytes()
+    {
+        var format = new AudioRenderFormat(
+            SampleRate: 48000,
+            BitDepth: 32,
+            Channels: 2,
+            BlockAlign: 8,
+            SampleFormat: AudioRenderSampleFormat.IeeeFloat);
+
+        byte[] buffer = PcmKeepAliveBuffer.Create(format, frameCount: 2, PcmRenderSignal.DigitalSilence);
+
+        Assert.Equal(16, buffer.Length);
+        Assert.All(buffer, value => Assert.Equal(0, value));
+    }
+
     private sealed class FakeWasapiRenderClient : IWasapiRenderClient
     {
         private readonly uint bufferFrameCount;
@@ -73,13 +105,16 @@ public sealed class SilentPcmRenderSessionTests
             SampleRate: 48000,
             BitDepth: 16,
             Channels: 2,
-            BlockAlign: 4);
+            BlockAlign: 4,
+            SampleFormat: AudioRenderSampleFormat.PcmInteger);
 
         public TimeSpan BufferDuration { get; } = TimeSpan.FromMilliseconds(20);
 
         public TimeSpan Latency { get; } = TimeSpan.FromMilliseconds(10);
 
         public uint? LastRenderedFrameCount { get; private set; }
+
+        public PcmRenderSignal? LastSignal { get; private set; }
 
         public bool Stopped { get; private set; }
 
@@ -95,9 +130,10 @@ public sealed class SilentPcmRenderSessionTests
             return currentPadding;
         }
 
-        public void RenderSilence(uint frameCount)
+        public void Render(uint frameCount, PcmRenderSignal signal)
         {
             LastRenderedFrameCount = frameCount;
+            LastSignal = signal;
         }
 
         public void Stop()

@@ -20,8 +20,8 @@ public interface IWasapiRenderClient : IAsyncDisposable
     /// <summary>Gets the number of frames already queued in the endpoint buffer.</summary>
     uint GetCurrentPadding();
 
-    /// <summary>Renders zero-valued PCM frames.</summary>
-    void RenderSilence(uint frameCount);
+    /// <summary>Renders PCM keep-alive frames.</summary>
+    void Render(uint frameCount, PcmRenderSignal signal);
 
     /// <summary>Stops the render stream.</summary>
     void Stop();

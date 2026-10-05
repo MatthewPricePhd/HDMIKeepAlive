@@ -39,7 +39,12 @@ public static class AppBootstrapper
         services.AddSingleton<IDeviceChangeMonitor, WindowsDeviceChangeMonitor>();
         services.AddSingleton<IReconnectDelay, SystemReconnectDelay>();
         services.AddSingleton<EndpointHoldKeepAliveEngine>();
-        services.AddSingleton<SilentPcmKeepAliveEngine>();
+        services.AddSingleton<SilentPcmRenderOptions>();
+        services.AddSingleton<SilentPcmKeepAliveEngine>(serviceProvider => new SilentPcmKeepAliveEngine(
+            new WasapiSilentPcmRenderSessionFactory(
+                new WasapiAudioEndpointSource(),
+                new WasapiSilentPcmRenderSessionOpener(serviceProvider.GetRequiredService<SilentPcmRenderOptions>())),
+            new SystemRenderLoopClock()));
         services.AddSingleton<ModeRoutingAudioKeepAliveEngine>(serviceProvider => new ModeRoutingAudioKeepAliveEngine(
             serviceProvider.GetRequiredService<EndpointHoldKeepAliveEngine>(),
             serviceProvider.GetRequiredService<SilentPcmKeepAliveEngine>()));

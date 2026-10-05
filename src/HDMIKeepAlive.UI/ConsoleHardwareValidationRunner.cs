@@ -1,3 +1,4 @@
+using HDMIKeepAlive.Audio;
 using HDMIKeepAlive.Core.Models;
 using HDMIKeepAlive.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -77,6 +78,9 @@ public sealed class ConsoleHardwareValidationRunner
 
     private async Task<int> RunKeepAliveAsync(CommandLineOptions options, CancellationToken cancellationToken)
     {
+        SilentPcmRenderOptions renderOptions = host.Services.GetRequiredService<SilentPcmRenderOptions>();
+        renderOptions.Signal = options.Signal;
+
         IAudioKeepAliveEngine engine = host.Services.GetRequiredService<IAudioKeepAliveEngine>();
         AudioDeviceSelection selection = new(
             options.TargetMode,
@@ -84,8 +88,18 @@ public sealed class ConsoleHardwareValidationRunner
             FriendlyNameFallback: null);
 
         await output.WriteLineAsync($"Starting {options.Mode} keep-alive. Press Ctrl+C to stop.").ConfigureAwait(false);
+        if (options.Mode == KeepAliveMode.SilentPcm)
+        {
+            await output.WriteLineAsync($"PCM signal: {FormatSignal(options.Signal)}").ConfigureAwait(false);
+        }
+
         await engine.StartAsync(selection, options.Mode, cancellationToken).ConfigureAwait(false);
         await output.WriteLineAsync("Keep-alive running.").ConfigureAwait(false);
+
+        using var diagnosticsCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        Task? diagnosticsTask = options.Mode == KeepAliveMode.SilentPcm
+            ? PrintSilentPcmDiagnosticsAsync(diagnosticsCancellation.Token)
+            : null;
 
         try
         {
@@ -97,11 +111,38 @@ public sealed class ConsoleHardwareValidationRunner
         }
         finally
         {
+            await diagnosticsCancellation.CancelAsync().ConfigureAwait(false);
+            if (diagnosticsTask is not null)
+            {
+                await diagnosticsTask.ConfigureAwait(false);
+            }
+
             await engine.StopAsync(CancellationToken.None).ConfigureAwait(false);
             await output.WriteLineAsync("Keep-alive stopped.").ConfigureAwait(false);
         }
 
         return 0;
+    }
+
+    private async Task PrintSilentPcmDiagnosticsAsync(CancellationToken cancellationToken)
+    {
+        SilentPcmKeepAliveEngine engine = host.Services.GetRequiredService<SilentPcmKeepAliveEngine>();
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                EngineDiagnostics diagnostics = await engine.GetDiagnosticsAsync(cancellationToken).ConfigureAwait(false);
+                await output.WriteLineAsync(
+                    $"Diagnostics: state={diagnostics.State}, frames={diagnostics.FramesRendered}, format={FormatDiagnostics(diagnostics)}, buffer={FormatTimeSpan(diagnostics.BufferDuration)}, latency={FormatTimeSpan(diagnostics.Latency)}")
+                    .ConfigureAwait(false);
+
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
     }
 
     private static string FormatDevice(AudioDeviceInfo device)
@@ -112,5 +153,30 @@ public sealed class ConsoleHardwareValidationRunner
         }
 
         return $"{device.SampleRate / 1000} kHz / {device.BitDepth}-bit / {device.Channels} ch";
+    }
+
+    private static string FormatSignal(PcmRenderSignal signal)
+    {
+        return signal switch
+        {
+            PcmRenderSignal.DigitalSilence => "digital silence",
+            PcmRenderSignal.LowAmplitude => "low-amplitude alternating PCM",
+            _ => signal.ToString()
+        };
+    }
+
+    private static string FormatDiagnostics(EngineDiagnostics diagnostics)
+    {
+        if (diagnostics.SampleRate is null || diagnostics.BitDepth is null || diagnostics.Channels is null)
+        {
+            return "Unavailable";
+        }
+
+        return $"{diagnostics.SampleRate / 1000} kHz / {diagnostics.BitDepth}-bit / {diagnostics.Channels} ch";
+    }
+
+    private static string FormatTimeSpan(TimeSpan? value)
+    {
+        return value is null ? "Unavailable" : $"{value.Value.TotalMilliseconds:0.###} ms";
     }
 }

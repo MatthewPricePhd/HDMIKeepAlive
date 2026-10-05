@@ -7,4 +7,5 @@ public sealed record AudioRenderFormat(
     int SampleRate,
     int BitDepth,
     int Channels,
-    int BlockAlign);
+    int BlockAlign,
+    AudioRenderSampleFormat SampleFormat);

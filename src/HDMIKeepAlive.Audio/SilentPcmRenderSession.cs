@@ -6,6 +6,7 @@ namespace HDMIKeepAlive.Audio;
 public sealed class SilentPcmRenderSession : ISilentPcmRenderSession
 {
     private readonly IWasapiRenderClient renderClient;
+    private readonly SilentPcmRenderOptions options;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SilentPcmRenderSession"/> class.
@@ -14,10 +15,23 @@ public sealed class SilentPcmRenderSession : ISilentPcmRenderSession
         string endpointId,
         string? endpointName,
         IWasapiRenderClient renderClient)
+        : this(endpointId, endpointName, renderClient, new SilentPcmRenderOptions())
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SilentPcmRenderSession"/> class.
+    /// </summary>
+    public SilentPcmRenderSession(
+        string endpointId,
+        string? endpointName,
+        IWasapiRenderClient renderClient,
+        SilentPcmRenderOptions options)
     {
         EndpointId = endpointId;
         EndpointName = endpointName;
         this.renderClient = renderClient ?? throw new ArgumentNullException(nameof(renderClient));
+        this.options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     /// <inheritdoc />
@@ -58,7 +72,7 @@ public sealed class SilentPcmRenderSession : ISilentPcmRenderSession
             return Task.CompletedTask;
         }
 
-        renderClient.RenderSilence(availableFrames);
+        renderClient.Render(availableFrames, options.Signal);
         FramesRendered += availableFrames;
         return Task.CompletedTask;
     }

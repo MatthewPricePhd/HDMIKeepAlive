@@ -24,7 +24,8 @@ no driver/service install, no registry writes, no network traffic, no microphone
 | Mode | Flag | What it does | Status |
 |------|------|--------------|--------|
 | Hold Only | `--mode HoldOnly` | Opens and holds the endpoint open, renders **no** audio | Primary test |
-| Silent PCM | `--mode SilentPcm` | Renders **zero-valued** (silent) PCM buffers to keep the clock active | Secondary test |
+| Silent PCM | `--mode SilentPcm` | Renders **zero-valued** PCM buffers to keep the clock active | Primary test |
+| Low-amplitude PCM | `--mode SilentPcm --signal low` | Renders a very low-amplitude alternating PCM signal for hardware validation when digital silence is still treated as idle | Experimental test |
 | Auto | `--mode Auto` | **Not implemented — will error. Do not use.** | ❌ |
 
 Targeting: `--device-id "<id>"` for a specific endpoint, or `--target hdmi` to auto-pick HDMI-like devices.
@@ -61,7 +62,7 @@ LG TV (NVIDIA High Definition Audio)
 ```
 
 **Do this:**
-- [ ] Copy the **entire** output into the results template (Section 8, field *Device list*).
+- [ ] Copy the **entire** output into the results template (Section 9, field *Device list*).
 - [ ] Identify your HDMI / display / soundbar / AVR endpoint and copy its **full `ID:` string** — you'll paste it into the commands below.
 
 > Tip: copy from PowerShell by selecting text and pressing **Enter**, or right-click the title bar → Edit → Mark.
@@ -77,7 +78,7 @@ This captures the problem you're trying to fix.
 3. Play audio (Windows "Test" button in Sound settings, a YouTube clip, Teams test call, or your usual app).
 4. Note whether the **first ~1 second** is clipped, delayed, or fades in.
 
-- [ ] Record the result in Section 8 (*Baseline*).
+- [ ] Record the result in Section 9 (*Baseline*).
 
 ---
 
@@ -99,7 +100,7 @@ Keep-alive running.
 2. While it runs, play audio and check the first second again.
 3. Stop with **`Ctrl+C`** — you should see `Keep-alive stopped.`
 
-- [ ] Record the result in Section 8 (*HoldOnly*).
+- [ ] Record the result in Section 9 (*HoldOnly*).
 
 ---
 
@@ -113,14 +114,34 @@ Keep-alive running.
 
 **Do this:**
 1. Run 10+ minutes; test audio first-second behavior.
-2. Listen for ANY hiss, click, or tone (there should be none).
-3. Stop with `Ctrl+C`.
+2. Confirm the console prints `Diagnostics:` lines and that `frames=` increases over time.
+3. Listen for ANY hiss, click, or tone (there should be none).
+4. Stop with `Ctrl+C`.
 
-- [ ] Record the result in Section 8 (*SilentPcm* + *Audible noise*).
+- [ ] Record the result in Section 9 (*SilentPcm* + *Audible noise*).
 
 ---
 
-## 6. Optional — HDMI auto-target
+## 6. Test low-amplitude PCM mode
+
+Use this if `SilentPcm` with digital silence starts successfully but does **not** reduce the HDMI wake delay.
+
+```powershell
+.\HDMIKeepAlive.exe --run --mode SilentPcm --device-id "<PASTE DEVICE ID HERE>" --signal low
+```
+
+**Expected:** `PCM signal: low-amplitude alternating PCM`, repeating `Diagnostics:` lines, and no audible hiss/click/tone. This signal is intentionally non-zero but should be below normal audibility.
+
+**Do this:**
+1. Run 10+ minutes; confirm `frames=` increases.
+2. Play audio and check first-second behavior.
+3. Stop with `Ctrl+C`.
+
+- [ ] Record the result in Section 9 (*Low-amplitude PCM* + *Audible noise*).
+
+---
+
+## 7. Optional — HDMI auto-target
 
 Use if your device ID changes after dock/KVM reconnects (so you don't have to re-copy the ID):
 
@@ -130,13 +151,13 @@ Use if your device ID changes after dock/KVM reconnects (so you don't have to re
 
 **Expected:** it auto-selects an HDMI-like endpoint and behaves like Section 5.
 
-- [ ] Record in Section 8 (*HDMI auto-target*).
+- [ ] Record in Section 9 (*HDMI auto-target*).
 
 ---
 
-## 7. Reconnect / resilience test
+## 8. Reconnect / resilience test
 
-With a keep-alive running (Section 5 or 6), trigger a real-world disruption **if safe to do so**:
+With a keep-alive running (Section 5, 6, or 7), trigger a real-world disruption **if safe to do so**:
 
 - Unplug/replug the dock, **or**
 - Switch KVM inputs, **or**
@@ -144,11 +165,11 @@ With a keep-alive running (Section 5 or 6), trigger a real-world disruption **if
 
 **Expected:** the app does **not** crash, prints reconnect/running messages, and audio recovers.
 
-- [ ] Record in Section 8 (*Reconnect*).
+- [ ] Record in Section 9 (*Reconnect*).
 
 ---
 
-## 8. Results template — copy everything below into your reply for Codex
+## 9. Results template — copy everything below into your reply for Codex
 
 Fill in each field. Paste raw console text where asked. Leave a field as `N/A` if you skipped it.
 
@@ -181,9 +202,18 @@ Fill in each field. Paste raw console text where asked. Leave a field as `N/A` i
 
 **SilentPcm result:**
 - First second clipped/delayed?  Yes / No / Improved
+- Did Diagnostics frames increase over time?  Yes / No
+- Final frames value:
 - Notes:
 
 **Audible noise during SilentPcm?**  Yes / No  (describe if yes)
+
+**Low-amplitude PCM result (--signal low):**
+- First second clipped/delayed?  Yes / No / Improved / N/A
+- Did Diagnostics frames increase over time?  Yes / No / N/A
+- Final frames value:
+- Audible noise?  Yes / No / N/A
+- Notes:
 
 **HDMI auto-target (--target hdmi):**  Pass / Fail / N/A
 - Notes:

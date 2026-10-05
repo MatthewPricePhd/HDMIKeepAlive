@@ -51,6 +51,7 @@ Useful validation commands:
 .\HDMIKeepAlive.exe --run --mode HoldOnly
 .\HDMIKeepAlive.exe --run --mode SilentPcm
 .\HDMIKeepAlive.exe --run --mode SilentPcm --device-id "<endpoint-id>"
+.\HDMIKeepAlive.exe --run --mode SilentPcm --device-id "<endpoint-id>" --signal low
 .\HDMIKeepAlive.exe --run --mode SilentPcm --target hdmi
 ```
 

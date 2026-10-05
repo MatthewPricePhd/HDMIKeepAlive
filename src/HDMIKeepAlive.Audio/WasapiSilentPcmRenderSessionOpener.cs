@@ -8,6 +8,24 @@ namespace HDMIKeepAlive.Audio;
 /// </summary>
 public sealed class WasapiSilentPcmRenderSessionOpener : ISilentPcmRenderSessionOpener
 {
+    private readonly SilentPcmRenderOptions options;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WasapiSilentPcmRenderSessionOpener"/> class.
+    /// </summary>
+    public WasapiSilentPcmRenderSessionOpener()
+        : this(new SilentPcmRenderOptions())
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WasapiSilentPcmRenderSessionOpener"/> class.
+    /// </summary>
+    public WasapiSilentPcmRenderSessionOpener(SilentPcmRenderOptions options)
+    {
+        this.options = options ?? throw new ArgumentNullException(nameof(options));
+    }
+
     /// <inheritdoc />
     public Task<ISilentPcmRenderSession> OpenAsync(string endpointId, CancellationToken cancellationToken)
     {
@@ -19,11 +37,11 @@ public sealed class WasapiSilentPcmRenderSessionOpener : ISilentPcmRenderSession
             throw new PlatformNotSupportedException("WASAPI Silent PCM rendering requires Windows.");
         }
 
-        return Task.FromResult<ISilentPcmRenderSession>(OpenRenderSession(endpointId));
+        return Task.FromResult<ISilentPcmRenderSession>(OpenRenderSession(endpointId, options));
     }
 
     [SupportedOSPlatform("windows")]
-    private static SilentPcmRenderSession OpenRenderSession(string endpointId)
+    private static SilentPcmRenderSession OpenRenderSession(string endpointId, SilentPcmRenderOptions options)
     {
         var enumerator = CoreAudioInterop.CreateDeviceEnumerator();
         enumerator.GetDevice(endpointId, out IMMDevice device);
@@ -65,7 +83,7 @@ public sealed class WasapiSilentPcmRenderSessionOpener : ISilentPcmRenderSession
                 device,
                 enumerator);
 
-            return new SilentPcmRenderSession(endpointId, endpointName: null, client);
+            return new SilentPcmRenderSession(endpointId, endpointName: null, client, options);
         }
         finally
         {
@@ -134,17 +152,16 @@ public sealed class WasapiSilentPcmRenderSessionOpener : ISilentPcmRenderSession
             return currentPadding;
         }
 
-        public void RenderSilence(uint frameCount)
+        public void Render(uint frameCount, PcmRenderSignal signal)
         {
             if (frameCount == 0)
             {
                 return;
             }
 
-            int byteCount = checked((int)(frameCount * (uint)Format.BlockAlign));
-            byte[] silence = PcmSilence.CreateBuffer(byteCount);
+            byte[] bufferBytes = PcmKeepAliveBuffer.Create(Format, frameCount, signal);
             renderClient.GetBuffer(frameCount, out IntPtr buffer);
-            Marshal.Copy(silence, 0, buffer, silence.Length);
+            Marshal.Copy(bufferBytes, 0, buffer, bufferBytes.Length);
             renderClient.ReleaseBuffer(frameCount, flags: 0);
         }
 
@@ -177,21 +194,53 @@ public sealed class WasapiSilentPcmRenderSessionOpener : ISilentPcmRenderSession
 
     private static class AudioRenderFormatParser
     {
+        private const ushort WaveFormatPcm = 0x0001;
+        private const ushort WaveFormatIeeeFloat = 0x0003;
+        private const ushort WaveFormatExtensible = 0xfffe;
+        private static readonly Guid PcmSubFormat = new("00000001-0000-0010-8000-00aa00389b71");
+        private static readonly Guid IeeeFloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
+
         public static AudioRenderFormat Parse(IntPtr waveFormatPointer)
         {
             WaveFormatEx format = Marshal.PtrToStructure<WaveFormatEx>(waveFormatPointer);
+            AudioRenderSampleFormat sampleFormat = ParseSampleFormat(waveFormatPointer, format);
             return new AudioRenderFormat(
                 SampleRate: checked((int)format.SamplesPerSecond),
                 BitDepth: format.BitsPerSample,
                 Channels: format.Channels,
-                BlockAlign: format.BlockAlign);
+                BlockAlign: format.BlockAlign,
+                SampleFormat: sampleFormat);
+        }
+
+        private static AudioRenderSampleFormat ParseSampleFormat(IntPtr waveFormatPointer, WaveFormatEx format)
+        {
+            return format.FormatTag switch
+            {
+                WaveFormatPcm => AudioRenderSampleFormat.PcmInteger,
+                WaveFormatIeeeFloat => AudioRenderSampleFormat.IeeeFloat,
+                WaveFormatExtensible => ParseExtensibleSampleFormat(waveFormatPointer),
+                _ => AudioRenderSampleFormat.Unknown
+            };
+        }
+
+        private static AudioRenderSampleFormat ParseExtensibleSampleFormat(IntPtr waveFormatPointer)
+        {
+            WaveFormatExtensible format = Marshal.PtrToStructure<WaveFormatExtensible>(waveFormatPointer);
+            if (format.SubFormat == PcmSubFormat)
+            {
+                return AudioRenderSampleFormat.PcmInteger;
+            }
+
+            return format.SubFormat == IeeeFloatSubFormat
+                ? AudioRenderSampleFormat.IeeeFloat
+                : AudioRenderSampleFormat.Unknown;
         }
     }
 
     [StructLayout(LayoutKind.Sequential)]
     private readonly struct WaveFormatEx
     {
-        private readonly ushort formatTag;
+        public readonly ushort FormatTag;
 
         public readonly ushort Channels;
 
@@ -204,6 +253,16 @@ public sealed class WasapiSilentPcmRenderSessionOpener : ISilentPcmRenderSession
         public readonly ushort BitsPerSample;
 
         private readonly ushort extraSize;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly struct WaveFormatExtensible
+    {
+        private readonly WaveFormatEx format;
+        private readonly ushort validBitsPerSample;
+        private readonly uint channelMask;
+
+        public readonly Guid SubFormat;
     }
 
 }

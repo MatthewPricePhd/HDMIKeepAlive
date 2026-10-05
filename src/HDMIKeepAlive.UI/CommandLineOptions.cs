@@ -1,4 +1,5 @@
 using HDMIKeepAlive.Core.Models;
+using HDMIKeepAlive.Audio;
 
 namespace HDMIKeepAlive.UI;
 
@@ -11,7 +12,8 @@ public sealed record CommandLineOptions(
     bool Run,
     KeepAliveMode Mode,
     AudioTargetMode TargetMode,
-    string? DeviceId)
+    string? DeviceId,
+    PcmRenderSignal Signal)
 {
     /// <summary>
     /// Parses command-line arguments.
@@ -53,6 +55,9 @@ public sealed record CommandLineOptions(
                         TargetMode = AudioTargetMode.SpecificDevice
                     };
                     break;
+                case "--signal":
+                    options = options with { Signal = ParseSignal(ReadValue(args, ref index, arg)) };
+                    break;
                 default:
                     throw new ArgumentException($"Unknown argument: {arg}", nameof(args));
             }
@@ -74,7 +79,12 @@ public sealed record CommandLineOptions(
           HDMIKeepAlive.exe --run --mode HoldOnly
           HDMIKeepAlive.exe --run --mode SilentPcm
           HDMIKeepAlive.exe --run --mode SilentPcm --device-id "<endpoint-id>"
+          HDMIKeepAlive.exe --run --mode SilentPcm --device-id "<endpoint-id>" --signal low
           HDMIKeepAlive.exe --run --mode SilentPcm --target hdmi
+
+        Signals:
+          silence  Digital zeroes (default)
+          low      Very low-amplitude alternating PCM for hardware validation
 
         Stop a running keep-alive session with Ctrl+C.
         """;
@@ -86,7 +96,8 @@ public sealed record CommandLineOptions(
         Run: false,
         Mode: KeepAliveMode.HoldOnly,
         TargetMode: AudioTargetMode.DefaultDevice,
-        DeviceId: null);
+        DeviceId: null,
+        Signal: PcmRenderSignal.DigitalSilence);
 
     private static string ReadValue(string[] args, ref int index, string optionName)
     {
@@ -115,6 +126,18 @@ public sealed record CommandLineOptions(
             "specific" => AudioTargetMode.SpecificDevice,
             "hdmi" => AudioTargetMode.HdmiDevicesOnly,
             _ => ParseEnum<AudioTargetMode>(value)
+        };
+    }
+
+    private static PcmRenderSignal ParseSignal(string value)
+    {
+        return value.ToLowerInvariant() switch
+        {
+            "silence" => PcmRenderSignal.DigitalSilence,
+            "digital-silence" => PcmRenderSignal.DigitalSilence,
+            "low" => PcmRenderSignal.LowAmplitude,
+            "low-amplitude" => PcmRenderSignal.LowAmplitude,
+            _ => ParseEnum<PcmRenderSignal>(value)
         };
     }
 }
